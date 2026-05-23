@@ -4,55 +4,19 @@ import { useCartStore } from "@/store/cart";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, getTotalPrice, clearCart } = useCartStore();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const formatPrice = (price: number) => `¥${price.toLocaleString("ja-JP")}`;
   const subtotal = getTotalPrice();
   const shippingFee = 800;
   const total = subtotal + shippingFee;
 
-  const handleCheckout = async () => {
+  const handleCheckout = () => {
     if (items.length === 0) return;
-    setError("");
-    setIsLoading(true);
-
-    try {
-      const response = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          router.push("/auth/login?callbackUrl=/cart");
-          return;
-        }
-        if (response.status === 403) {
-          router.push("/subscribe");
-          return;
-        }
-        setError(data.error || "チェックアウトに失敗しました");
-        return;
-      }
-
-      if (data.url) {
-        clearCart();
-        window.location.href = data.url;
-      }
-    } catch {
-      setError("エラーが発生しました。もう一度お試しください");
-    } finally {
-      setIsLoading(false);
-    }
+    router.push("/checkout");
   };
 
   if (items.length === 0) {
@@ -226,36 +190,15 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {error && (
-                <div
-                  className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-sans mb-4"
-                  role="alert"
-                >
-                  {error}
-                </div>
-              )}
-
               <button
                 onClick={handleCheckout}
-                disabled={isLoading}
                 className="btn-primary w-full justify-center mb-3"
-                aria-busy={isLoading}
               >
-                {isLoading ? (
-                  <span className="flex items-center space-x-2">
-                    <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    <span>処理中...</span>
-                  </span>
-                ) : (
-                  "レジに進む"
-                )}
+                レジに進む
               </button>
 
               <p className="text-center text-midnight/40 text-xs font-sans">
-                Stripeによる安全な決済
+                PAY.JPによる安全な決済
               </p>
 
               {/* Security badges */}

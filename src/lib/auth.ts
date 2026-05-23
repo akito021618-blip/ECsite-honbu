@@ -38,7 +38,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           name: user.name,
           subscriptionStatus: user.subscriptionStatus,
-          stripeCustomerId: user.stripeCustomerId,
+          payjpCustomerId: user.payjpCustomerId,
         };
       },
     }),
@@ -48,19 +48,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id;
         token.subscriptionStatus = (user as { subscriptionStatus?: string }).subscriptionStatus;
-        token.stripeCustomerId = (user as { stripeCustomerId?: string | null }).stripeCustomerId;
+        token.payjpCustomerId = (user as { payjpCustomerId?: string | null }).payjpCustomerId;
       }
 
-      // Refresh subscription status on session update
       if (trigger === "update" || trigger === "signIn") {
         if (token.id) {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.id as string },
-            select: { subscriptionStatus: true, stripeCustomerId: true },
+            select: { subscriptionStatus: true, payjpCustomerId: true },
           });
           if (dbUser) {
             token.subscriptionStatus = dbUser.subscriptionStatus;
-            token.stripeCustomerId = dbUser.stripeCustomerId;
+            token.payjpCustomerId = dbUser.payjpCustomerId;
           }
         }
       }
@@ -71,7 +70,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (token) {
         session.user.id = token.id as string;
         session.user.subscriptionStatus = token.subscriptionStatus as string;
-        session.user.stripeCustomerId = token.stripeCustomerId as string | null;
+        session.user.payjpCustomerId = token.payjpCustomerId as string | null;
       }
       return session;
     },
@@ -93,7 +92,7 @@ declare module "next-auth" {
       name?: string | null;
       image?: string | null;
       subscriptionStatus: string;
-      stripeCustomerId?: string | null;
+      payjpCustomerId?: string | null;
     };
   }
 }

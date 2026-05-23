@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useRef, useState } from "react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { PayjpCardForm, type PayjpCardFormRef } from "@/components/PayjpCardForm";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { update } = useSession();
+  const cardFormRef = useRef<PayjpCardFormRef>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -75,22 +78,31 @@ export default function RegisterPage() {
     }
   };
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
     try {
-      const response = await fetch("/api/stripe/subscription", {
+      const token = await cardFormRef.current?.createToken();
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      const response = await fetch("/api/payjp/subscription", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ returnUrl: window.location.href }),
+        body: JSON.stringify({ token }),
       });
 
       const data = await response.json();
 
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setError("サブスクリプションの作成に失敗しました");
+      if (!response.ok) {
+        setError(data.error || "サブスクリプションの作成に失敗しました");
+        return;
       }
+
+      await update();
+      router.push("/shop");
     } catch {
       setError("エラーが発生しました");
     } finally {
@@ -152,41 +164,46 @@ export default function RegisterPage() {
             </ul>
           </div>
 
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-sm font-sans mb-4" role="alert">
-              {error}
-            </div>
-          )}
+          <form onSubmit={handleSubscribe} className="space-y-4">
+            <PayjpCardForm ref={cardFormRef} />
 
-          <div className="space-y-3">
-            <button
-              onClick={handleSubscribe}
-              disabled={isLoading}
-              className="btn-primary w-full justify-center"
-              aria-busy={isLoading}
-            >
-              {isLoading ? (
-                <span className="flex items-center space-x-2">
-                  <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <span>処理中...</span>
-                </span>
-              ) : (
-                "会員登録する — 月額¥600"
-              )}
-            </button>
-            <button
-              onClick={handleSkipSubscription}
-              className="btn-secondary w-full justify-center text-xs"
-            >
-              後で登録する
-            </button>
-          </div>
+            {error && (
+              <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-sm font-sans" role="alert">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-3 pt-2">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="btn-primary w-full justify-center"
+                aria-busy={isLoading}
+              >
+                {isLoading ? (
+                  <span className="flex items-center space-x-2">
+                    <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span>処理中...</span>
+                  </span>
+                ) : (
+                  "会員登録する — 月額¥600"
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={handleSkipSubscription}
+                className="btn-secondary w-full justify-center text-xs"
+              >
+                後で登録する
+              </button>
+            </div>
+          </form>
 
           <p className="text-midnight/40 text-xs font-sans text-center mt-4">
-            Stripeによる安全な決済
+            PAY.JPによる安全な決済
           </p>
         </div>
       </div>
